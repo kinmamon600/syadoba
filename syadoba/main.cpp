@@ -11,14 +11,16 @@ const int CARD_WIDTH = 100;
 const int CARD_HEIGHT = 140;
 //手札
 const int CARD_INTERVAL = 120;
-const int HAND_Y = 550;
+const int HAND_Y = 570;
 //フィールドカード
-const int FIELD_CARD_Y = 300;
+const int FIELD_CARD_Y = 410;
+//相手のフィールドカード
+const int ENEMY_CARD_Y = 190;
 //フィールド
 const int FIELD_X = 250;
 const int FIELD_Y = 190;
-const int FIELD_WIDTH = 1030;
-const int FIELD_HEIGHT = 450;
+const int FIELD_WIDTH = 780;
+const int FIELD_HEIGHT = 360;
 
 class Input {
 public:
@@ -39,10 +41,8 @@ public:
 	Card(std::string _name = "null", int _cost = 0, int _attack = 0, int _hp = 0);
 	//カード描画
 	void DrawCard(int x, int y);
-	//手札の当たり判定
-	bool HandDetection(int x, int y);
-	//フィールドのカードの当たり判定
-	bool FieldCardDetection(int x, int y);
+	//カードの当たり判定
+	bool HitDetection(int x, int y);
 };
 
 Card::Card(std::string _name, int _cost, int _attack, int _hp) {
@@ -58,21 +58,17 @@ void Card::DrawCard(int x, int y) {
 	std::string hpText = std::to_string(m_hp);
 
 	DrawBox(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, GetColor(255, 255, 255), true);
-	DrawString(x + 30, y + 30, m_name.c_str(), GetColor(0, 0, 0));
+	DrawString(x + 20, y + 30, m_name.c_str(), GetColor(0, 0, 0));
 	DrawString(x + 10, y + 20, costText.c_str(), GetColor(66, 214, 107));
 	DrawString(x + 20, y + 120, attackText.c_str(), GetColor(74, 168, 255));
 	DrawString(x + 80, y + 120, hpText.c_str(), GetColor(255, 85, 85));
 }
 
-bool Card::HandDetection(int x, int y) {
-	if (Input::mouseX >= x && Input::mouseY >= y && Input::mouseX <= x + CARD_WIDTH && Input::mouseY <= y + CARD_HEIGHT) { return true; }
-	else {return false;	}
-}
-
-bool Card::FieldCardDetection(int x, int y) {
+bool Card::HitDetection(int x, int y) {
 	if (Input::mouseX >= x && Input::mouseY >= y && Input::mouseX <= x + CARD_WIDTH && Input::mouseY <= y + CARD_HEIGHT) { return true; }
 	else { return false; }
 }
+
 
 
 class GameObserver {
@@ -84,7 +80,7 @@ public:
 };
 
 void GameObserver::DrawField() {
-	DrawBox(FIELD_X, FIELD_Y, FIELD_WIDTH, FIELD_HEIGHT, GetColor(100, 100, 100), false);
+	DrawBox(FIELD_X, FIELD_Y, FIELD_X + FIELD_WIDTH, FIELD_Y + FIELD_HEIGHT, GetColor(100, 100, 100), false);
 }
 
 bool GameObserver::FieldDetection() {
@@ -97,10 +93,10 @@ bool GameObserver::FieldDetection() {
 }
 
 
-////////--------------------------------------------------------------------------------------------------------------------------------------int main() {
+////////--------------------------------------------------------------------------------------------------------------------------------------
 
 
-int main(){
+int main() {
 
 	SetGraphMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32);
 
@@ -109,22 +105,32 @@ int main(){
 	}
 
 
-	Card fire("fire", 2, 3, 2);
+	Card slime("slime", 2, 3, 2);
 	Card goblin("goblkin", 1, 2, 1);
-	Card knight("knight", 3, 3, 5);
+	Card skeleton("skeleton", 3, 3, 5);
 
 	std::vector<Card>hand;
-	std::vector<Card>fieldCards;
+	std::vector<Card>playerField;
+	std::vector<Card>enemyField;
 
-	hand.push_back(fire);
+	hand.push_back(slime);
 	hand.push_back(goblin);
-	hand.push_back(knight);
+	hand.push_back(skeleton);
 
-	int currentSelectCard = -1;
-	int pastSelectCard = -1;
-	bool isDragging = false;	
+	enemyField.push_back(slime);
+	enemyField.push_back(goblin);
+	enemyField.push_back(skeleton);
+
+	int currentSelectHandCard = -1;
+	int pastSelectHandCard = -1;
+
+	int currentSelectFieldCard = -1;
+	int pastSelectFieldCard = -1;
+
+	bool isDragging = false;
 	int dragX = 0;
 	int dragY = 0;
+
 	bool currentClick = false;
 	bool pastClick = false;
 
@@ -140,16 +146,22 @@ int main(){
 		int mouseInput = GetMouseInput();
 		bool mouseOnCard = false;
 		int mouseColor;
+
 		int handWidth = (hand.size() - 1) * CARD_WIDTH + CARD_INTERVAL;
 		int handX = (SCREEN_WIDTH - handWidth) / 2;
-		int FieldCardX = FIELD_X + 10;
+
+		int fieldCardWidth = (playerField.size() - 1) * CARD_WIDTH + CARD_INTERVAL;
+		int fieldCardX = (SCREEN_WIDTH - fieldCardWidth) / 2;
+
+		int enemyCardWidth = (enemyField.size() - 1) * CARD_WIDTH + CARD_INTERVAL;
+		int enemyCardX = (SCREEN_WIDTH - enemyCardWidth) / 2;
 
 		GameObserver field;
 		field.DrawField();
 
 		//左クリックしていない
 		if (!(mouseInput & MOUSE_INPUT_LEFT)) {
-			currentSelectCard = -1;
+			currentSelectHandCard = -1;
 			isDragging = false;
 			currentClick = false;
 		}
@@ -160,56 +172,88 @@ int main(){
 			int y = HAND_Y;
 
 			//カードの上にマウスポインタがあるかの判別
-			if (hand[i].HandDetection(x, y)&&isDragging==false) {
+			if (hand[i].HitDetection(x, y) && !isDragging) {
 				mouseOnCard = true;
 				//左クリック
 				if (mouseInput & MOUSE_INPUT_LEFT) {
 					isDragging = true;
-					currentSelectCard = i;
+					currentSelectHandCard = i;
 					currentClick = true;
 				}
 			}
 			//カードがマウスについてくる
-			if (isDragging && currentSelectCard == i) {
+			if (isDragging && currentSelectHandCard == i) {
 				x = Input::mouseX - CARD_WIDTH / 2;
 				y = Input::mouseY - CARD_HEIGHT / 2;
 				dragX = x;
 				dragY = y;
 			}
 			//ドラッグしていないカードの描画
-			if (!(isDragging && currentSelectCard == i)) {
+			if (!(isDragging && currentSelectHandCard == i)) {
 				hand[i].DrawCard(x, y);
 			}
 		}
-		//ドラッグ中のカードの描画
-		if (isDragging && currentSelectCard != -1) {
-			hand[currentSelectCard].DrawCard(dragX, dragY);
-		}
-		
+
 		//クリックを離した
-		if (currentClick == false && pastClick == true) {
-			if (field.FieldDetection() && pastSelectCard != -1) {
-				fieldCards.push_back(hand[pastSelectCard]);
-				hand.erase(hand.begin() + pastSelectCard);
-				hand[pastSelectCard].DrawCard(FieldCardX, FIELD_CARD_Y);
+		if (!currentClick && pastClick) {
+			//フィールド上で
+			if (field.FieldDetection() && pastSelectHandCard != -1) {
+				playerField.push_back(hand[pastSelectHandCard]);
+				hand.erase(hand.begin() + pastSelectHandCard);
 			}
 		}
 
 		//フィールドガードの描画
-		for (int i = 0; i < fieldCards.size(); i++) {
-			int x = FIELD_X + i * CARD_INTERVAL;
+		for (int i = 0; i < playerField.size(); i++) {
+			int x = fieldCardX + i * CARD_INTERVAL;
 			int y = FIELD_CARD_Y;
 
-			if (fieldCards[i].FieldCardDetection(x, y)) {
+			//カードの上にマウスポインタがあるかの判別
+			if (playerField[i].HitDetection(x, y) && !isDragging) {
+				mouseOnCard = true;
+				//左クリック
+				if (mouseInput & MOUSE_INPUT_LEFT) {
+					currentSelectFieldCard = i;
+					currentClick = true;
+				}
+			}
+			if (currentSelectFieldCard == i) {
+				y -= 20;
+			}
 
+			//ドラッグしていないカードの描画
+			if (!(isDragging && currentSelectFieldCard == i)) {
+				playerField[i].DrawCard(x, y);
 			}
 		}
 
+		//相手のフィールドガードの描画
+		for (int i = 0; i < enemyField.size(); i++) {
+			int x = enemyCardX + i * CARD_INTERVAL;
+			int y = ENEMY_CARD_Y;
+			enemyField[i].DrawCard(x, y);
+
+			//カードの上にマウスポインタがあるかの判別
+			if (enemyField[i].HitDetection(x, y) && !isDragging) {
+				mouseOnCard = true;
+			}
+
+		}
+
+		//ドラッグ中のカードの描画
+		if (isDragging && currentSelectHandCard != -1) {
+			hand[currentSelectHandCard].DrawCard(dragX, dragY);
+		}
+		if (isDragging && currentSelectFieldCard != -1) {
+			playerField[currentSelectFieldCard].DrawCard(dragX, dragY);
+		}
+
 		pastClick = currentClick;
-		pastSelectCard = currentSelectCard;
+		pastSelectHandCard = currentSelectHandCard;
+		pastSelectFieldCard = currentSelectFieldCard;
 
 		//マウスポインタの描画
-		if (mouseOnCard || isDragging) { 
+		if (mouseOnCard || isDragging) {
 			mouseColor = GetColor(0, 0, 0);
 		}
 		else {
@@ -221,7 +265,7 @@ int main(){
 		ScreenFlip();
 	}
 
-  DxLib_End();
+	DxLib_End();
 
-  return 0; 
+	return 0;
 }
