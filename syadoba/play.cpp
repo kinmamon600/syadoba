@@ -43,6 +43,10 @@ public:
 	void DrawCard(int x, int y);
 	//カードの当たり判定
 	bool HitDetection(int x, int y);
+	//攻撃力を取得
+	int GetAttack();
+	//ＨＰを減らす
+	void TakeDamage(int damage);
 };
 
 Card::Card(std::string _name, int _cost, int _attack, int _hp) {
@@ -67,6 +71,18 @@ void Card::DrawCard(int x, int y) {
 bool Card::HitDetection(int x, int y) {
 	if (Input::mouseX >= x && Input::mouseY >= y && Input::mouseX <= x + CARD_WIDTH && Input::mouseY <= y + CARD_HEIGHT) { return true; }
 	else { return false; }
+}
+
+void Card::TakeDamage(int damage) {
+	m_hp -= damage;
+
+	if (m_hp < 0) {
+		m_hp = 0;
+	}
+}
+
+int Card::GetAttack() {
+	return m_attack;
 }
 
 
@@ -252,6 +268,7 @@ int main() {
 				if (mouseInput & MOUSE_INPUT_LEFT) {
 					if (selectFieldCard != -1) {
 						selectEnemyCard = i;
+
 					}
 				}
 			}
