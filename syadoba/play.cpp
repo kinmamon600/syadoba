@@ -45,6 +45,8 @@ public:
 	bool HitDetection(int x, int y);
 	//攻撃力を取得
 	int GetAttack();
+	//体力を取得
+	int GetHp();
 	//ＨＰを減らす
 	void TakeDamage(int damage);
 };
@@ -73,6 +75,14 @@ bool Card::HitDetection(int x, int y) {
 	else { return false; }
 }
 
+int Card::GetAttack() {
+	return m_attack;
+}
+
+int Card::GetHp() {
+	return m_hp;
+}
+
 void Card::TakeDamage(int damage) {
 	m_hp -= damage;
 
@@ -81,9 +91,6 @@ void Card::TakeDamage(int damage) {
 	}
 }
 
-int Card::GetAttack() {
-	return m_attack;
-}
 
 
 
@@ -182,6 +189,8 @@ int main() {
 
 		bool clickOnFieldCard = false;
 
+		bool canAttack = false;
+
 		GameObserver field;
 		field.DrawField();
 
@@ -249,6 +258,11 @@ int main() {
 				y -= 20;
 			}
 
+			//体力０のカードを削除
+			if (playerField[i].GetHp() == 0) {
+				playerField.erase(playerField.begin() + i);
+			}
+
 			//ドラッグしていないカードの描画
 			if (!(isDragging && selectFieldCard == i)) {
 				playerField[i].DrawCard(x, y);
@@ -268,16 +282,24 @@ int main() {
 				if (mouseInput & MOUSE_INPUT_LEFT) {
 					if (selectFieldCard != -1) {
 						selectEnemyCard = i;
-
+						canAttack = true;
 					}
 				}
 			}
-			if (selectEnemyCard == i) {
-				y -= 20;
-			}
+
 
 			enemyField[i].DrawCard(x, y);
 
+		}
+
+		if (canAttack) {
+			enemyField[selectEnemyCard].TakeDamage(playerField[selectFieldCard].GetAttack());
+
+			//体力０の相手カードを削除
+			if (enemyField[selectEnemyCard].GetHp() == 0) {
+				enemyField.erase(enemyField.begin() + selectEnemyCard);
+				selectEnemyCard = -1;
+			}
 		}
 
 		if (mouseInput & MOUSE_INPUT_LEFT) {
