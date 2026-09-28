@@ -46,6 +46,8 @@ public:
 	Card(std::string _name = "null", int _cost = 0, int _attack = 0, int _hp = 0, bool _hasAttack = false);
 	//カード描画
 	void DrawCard(int x, int y);
+	//カードの裏側の描画
+	void DrawBackCard(int x, int y);
 	//カードの当たり判定
 	bool HitDetection(int x, int y);
 	//攻撃力を取得
@@ -78,6 +80,10 @@ void Card::DrawCard(int x, int y) {
 	DrawString(x + 10, y + 20, costText.c_str(), GetColor(66, 214, 107));
 	DrawString(x + 20, y + 120, attackText.c_str(), GetColor(74, 168, 255));
 	DrawString(x + 80, y + 120, hpText.c_str(), GetColor(255, 85, 85));
+}
+
+void Card::DrawBackCard(int x, int y) {
+	DrawBox(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, GetColor(255, 255, 255), true);
 }
 
 bool Card::HitDetection(int x, int y) {
@@ -196,6 +202,10 @@ int main() {
 		int handWidth = (hand.size() - 1) * CARD_WIDTH + CARD_INTERVAL;	                //ハンド描画の横幅
 		int handX = (SCREEN_WIDTH - handWidth) / 2;						                //ハンドの開始位置
 
+		int enemyHandWidth = (enemyHand.size() - 1) * CARD_WIDTH + CARD_INTERVAL;	    //相手のハンド描画の横幅
+		int enemyHandX = (SCREEN_WIDTH - enemyHandWidth) / 2;						    //相手のハンドの開始位置
+
+
 		int fieldCardWidth = (playerField.size() - 1) * CARD_WIDTH + CARD_INTERVAL;		//フィールドカード描画の横幅
 		int fieldCardX = (SCREEN_WIDTH - fieldCardWidth) / 2;							//フィールドカードの開始位置
 
@@ -205,6 +215,7 @@ int main() {
 		bool clickedFieldCard = false;													//今のフレームでフィールドカードをクリックしたか
 
 		bool hasAttack = false;															//今から攻撃するかどうか
+
 
 		Field field;
 		field.DrawField();
@@ -216,17 +227,10 @@ int main() {
 			currentClick = false;
 		}
 		
-		//ターン終了ボタンの描画と判定
+		//ターン終了ボタンの描画
 		DrawCircle(TURN_BUTTON_X, TURN_BUTTON_Y, TURN_BUTTON_RADIUS, GetColor(100, 100, 100), true);
 
-		int dx = Input::mouseX - TURN_BUTTON_X;
-		int dy = Input::mouseY - TURN_BUTTON_Y;
 
-		if (dx * dx + dy * dy <= TURN_BUTTON_RADIUS * TURN_BUTTON_RADIUS) {
-			if ((mouseInput & MOUSE_INPUT_LEFT)) {
-				playerTurn = false;
-			}
-		}
 
 		//プレイヤーの行動---------------------------------------------------------
 		if (playerTurn) {
@@ -310,17 +314,27 @@ int main() {
 				}
 				selectEnemyCard = -1;
 			}
+
+			//ターン終了ボタンの当たり判定
+			int dx = Input::mouseX - TURN_BUTTON_X;
+			int dy = Input::mouseY - TURN_BUTTON_Y;
+			if (dx * dx + dy * dy <= TURN_BUTTON_RADIUS * TURN_BUTTON_RADIUS) {
+				if ((mouseInput & MOUSE_INPUT_LEFT)) {
+					playerTurn = false;
+				}
+			}
 		}
+
 
 
 		//相手の行動---------------------------------------------------------
 		else {
-			//ハンド
-			for (int i = 0; i < hand.size(); i++) {
-				int x = handX + i * CARD_INTERVAL;
-				int y = ENEMY_HAND_Y;
+			std::cout << "ターン終了";
+			if (!enemyHand.empty()) {
+				enemyField.push_back(enemyHand[0]);
+				enemyHand.erase(enemyHand.begin());
 			}
-
+		
 			playerTurn = true;
 		}
 
@@ -365,9 +379,10 @@ int main() {
 		}
 
 		//相手のハンド
-		for (int i = 0; i < hand.size(); i++) {
-			int x = handX + i * CARD_INTERVAL;
-			int y = HAND_Y;
+		for (int i = 0; i < enemyHand.size(); i++) {
+			int x = enemyHandX + i * CARD_INTERVAL;
+			int y = ENEMY_HAND_Y;
+			enemyHand[i].DrawBackCard(x, y);
 		}
 
 		//フィールドガード
