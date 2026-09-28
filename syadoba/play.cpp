@@ -7,24 +7,24 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 
 //カード
-const int CARD_WIDTH = 100;
-const int CARD_HEIGHT = 140;
+const int CARD_WIDTH = 100;       //カードの横幅
+const int CARD_HEIGHT = 140;	  //カードの縦幅
+const int CARD_INTERVAL = 120;	  //カードとカードの間
 //手札
-const int CARD_INTERVAL = 120;
-const int HAND_Y = 570;
+const int HAND_Y = 570;			  //ハンドのＹ軸
+const int ENEMY_HAND_Y = 40;      //相手ハンドのＹ軸
 //フィールドカード
-const int FIELD_CARD_Y = 410;
-//相手のフィールドカード
-const int ENEMY_CARD_Y = 190;
+const int FIELD_CARD_Y = 410;	  //フィールドカードのＹ軸
+const int ENEMY_CARD_Y = 190;	  //相手フィールドカードのＹ軸
 //フィールド
-const int FIELD_X = 250;
-const int FIELD_Y = 190;
-const int FIELD_WIDTH = 780;
-const int FIELD_HEIGHT = 360;
+const int FIELD_X = 250;		  //フィールドのＸ座標
+const int FIELD_Y = 190;		  //フィールドのＹ座標
+const int FIELD_WIDTH = 780;	  //フィールドの横幅
+const int FIELD_HEIGHT = 360;	  //フィールドの縦幅
 //ターン終了ボタン
-const int TURN_BUTTON_X = 1200;
-const int TURN_BUTTON_Y = 370;
-const int TURN_BUTTON_RADIUS = 60;
+const int TURN_BUTTON_X = 1200;		   //ターン終了ボタンのＸ座標
+const int TURN_BUTTON_Y = 370;		   //ターン終了ボタンのＹ座標
+const int TURN_BUTTON_RADIUS = 60;	   //ターン終了ボタンの半径
 
 class Input {
 public:
@@ -151,15 +151,16 @@ int main() {
 
 	std::vector<Card>hand;
 	std::vector<Card>playerField;
+	std::vector<Card>enemyHand;
 	std::vector<Card>enemyField;
 
 	hand.push_back(slime);
 	hand.push_back(goblin);
 	hand.push_back(skeleton);
 
-	enemyField.push_back(slime);
-	enemyField.push_back(goblin);
-	enemyField.push_back(skeleton);
+	enemyHand.push_back(slime);
+	enemyHand.push_back(goblin);
+	enemyHand.push_back(skeleton);
 
 	int selectHandCard = -1;         //現在手札で選択しているカード
 	int pastSelectHandCard = -1;     //１Ｆ前手札で選択していたカード
@@ -314,8 +315,20 @@ int main() {
 
 		//相手の行動---------------------------------------------------------
 		else {
+			//ハンド
+			for (int i = 0; i < hand.size(); i++) {
+				int x = handX + i * CARD_INTERVAL;
+				int y = ENEMY_HAND_Y;
+			}
+
 			playerTurn = true;
 		}
+
+		//-----------------------------------------------------------------------
+		
+
+
+
 
 
 		//何もないところをクリックすると選択が解除される
@@ -325,6 +338,12 @@ int main() {
 				selectEnemyCard = -1;
 			}
 		}
+
+
+
+
+
+
 
 		//カードの描画--------------------------------------------------------
 
@@ -343,6 +362,12 @@ int main() {
 			if (!(isDragging && selectHandCard == i)) {
 				hand[i].DrawCard(x, y);
 			}
+		}
+
+		//相手のハンド
+		for (int i = 0; i < hand.size(); i++) {
+			int x = handX + i * CARD_INTERVAL;
+			int y = HAND_Y;
 		}
 
 		//フィールドガード
