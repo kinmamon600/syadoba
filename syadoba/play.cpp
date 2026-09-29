@@ -25,6 +25,8 @@ const int FIELD_HEIGHT = 360;	  //フィールドの縦幅
 const int TURN_BUTTON_X = 1200;		   //ターン終了ボタンのＸ座標
 const int TURN_BUTTON_Y = 370;		   //ターン終了ボタンのＹ座標
 const int TURN_BUTTON_RADIUS = 60;	   //ターン終了ボタンの半径
+//AIの思考時間
+const float AI_THINK = 1.5f;           //AIの思考時間
 
 class Input {
 public:
@@ -182,7 +184,14 @@ int main() {
 	bool currentClick = false;       //現在クリックしているか
 	bool pastClick = false;          //１Ｆ前にクリックしていたか
 
-	bool playerTurn = true;         //現在のターン
+	bool playerTurn = true;          //現在のターン
+
+	int turnDrawTime = 0;			 //ターン描画秒数
+
+	int enemyAction = 0;			 //相手の行動段階
+	int enemyWait = 0;				 //相手の行動を待つ秒数
+
+	int turnFont = CreateFontToHandle("ＭＳ ゴシック", 80, 3, DX_FONTTYPE_NORMAL);
 
 
 	while (ProcessMessage() == 0) {
@@ -212,9 +221,12 @@ int main() {
 		int enemyCardWidth = (enemyField.size() - 1) * CARD_WIDTH + CARD_INTERVAL;		//相手フィールドカード描画の横幅
 		int enemyCardX = (SCREEN_WIDTH - enemyCardWidth) / 2;							//相手フィールドカードの開始位置
 
-		bool clickedFieldCard = false;													//今のフレームでフィールドカードをクリックしたか
+		bool clickedFieldCard = false;				        //今のフレームでフィールドカードをクリックしたか
 
-		bool hasAttack = false;															//今から攻撃するかどうか
+		bool hasAttack = false;								//今から攻撃するかどうか
+
+
+		bool drawTurn = false;
 
 
 		Field field;
@@ -234,93 +246,102 @@ int main() {
 
 		//プレイヤーの行動---------------------------------------------------------
 		if (playerTurn) {
+			turnDrawTime++;
 
-			//ハンドの行動
-			for (int i = 0; i < hand.size(); i++) {
-				int x = handX + i * CARD_INTERVAL;
-				int y = HAND_Y;
+			if (turnDrawTime <= 60) {
+				drawTurn = true;
+			}
 
-				//ハンドの上にマウスポインタがあるかの判別
-				if (hand[i].HitDetection(x, y) && !isDragging) {
-					mouseOnCard = true;
-					//左クリック
-					if (mouseInput & MOUSE_INPUT_LEFT) {
-						isDragging = true;
-						selectHandCard = i;
-						currentClick = true;
+			if (turnDrawTime >= 60) {
+				//ハンドの行動
+				for (int i = 0; i < hand.size(); i++) {
+					int x = handX + i * CARD_INTERVAL;
+					int y = HAND_Y;
+
+					//ハンドの上にマウスポインタがあるかの判別
+					if (hand[i].HitDetection(x, y) && !isDragging) {
+						mouseOnCard = true;
+						//左クリック
+						if (mouseInput & MOUSE_INPUT_LEFT) {
+							isDragging = true;
+							selectHandCard = i;
+							currentClick = true;
+						}
+					}
+
+					// 選択中のカードならドラッグ位置を更新
+					if (playerTurn && isDragging && selectHandCard == i)
+					{
+						dragX = Input::mouseX - CARD_WIDTH / 2;
+						dragY = Input::mouseY - CARD_HEIGHT / 2;
 					}
 				}
 
-				// 選択中のカードならドラッグ位置を更新
-				if (playerTurn && isDragging && selectHandCard == i)
-				{
-					dragX = Input::mouseX - CARD_WIDTH / 2;
-					dragY = Input::mouseY - CARD_HEIGHT / 2;
-				}
-			}
-
-			//クリックを離した
-			if (!currentClick && pastClick) {
-				//フィールド上で
-				if (field.FieldDetection() && pastSelectHandCard != -1) {
-					playerField.push_back(hand[pastSelectHandCard]);
-					hand.erase(hand.begin() + pastSelectHandCard);
-				}
-			}
-
-			//フィールドガードの行動
-			for (int i = 0; i < playerField.size(); i++) {
-				int x = fieldCardX + i * CARD_INTERVAL;
-				int y = FIELD_CARD_Y;
-
-				//カードの上にマウスポインタがあるかの判別
-				if (playerField[i].HitDetection(x, y) && !isDragging) {
-					mouseOnCard = true;
-					//左クリック
-					if (mouseInput & MOUSE_INPUT_LEFT) {
-						currentClick = true;
-						clickedFieldCard = true;
-						selectFieldCard = i;
+				//クリックを離した
+				if (!currentClick && pastClick) {
+					//フィールド上で
+					if (field.FieldDetection() && pastSelectHandCard != -1) {
+						playerField.push_back(hand[pastSelectHandCard]);
+						hand.erase(hand.begin() + pastSelectHandCard);
 					}
 				}
-			}
 
-			//相手のフィールドガードの行動
-			for (int i = 0; i < enemyField.size(); i++) {
-				int x = enemyCardX + i * CARD_INTERVAL;
-				int y = ENEMY_CARD_Y;
+				//フィールドガードの行動
+				for (int i = 0; i < playerField.size(); i++) {
+					int x = fieldCardX + i * CARD_INTERVAL;
+					int y = FIELD_CARD_Y;
 
-				//カードの上にマウスポインタがあるかの判別
-				if (enemyField[i].HitDetection(x, y) && !isDragging) {
-					mouseOnCard = true;
-					//左クリック
-					if (mouseInput & MOUSE_INPUT_LEFT) {
-						if (selectFieldCard != -1) {
-							selectEnemyCard = i;
-							hasAttack = true;
+					//カードの上にマウスポインタがあるかの判別
+					if (playerField[i].HitDetection(x, y) && !isDragging) {
+						mouseOnCard = true;
+						//左クリック
+						if (mouseInput & MOUSE_INPUT_LEFT) {
+							currentClick = true;
+							clickedFieldCard = true;
+							selectFieldCard = i;
 						}
 					}
 				}
-			}
 
-			//攻撃処理
-			if (hasAttack && !playerField[selectFieldCard].HasAttacked() &&selectFieldCard != -1 && selectEnemyCard != -1) {
-				enemyField[selectEnemyCard].TakeDamage(playerField[selectFieldCard].GetAttack());
-				playerField[selectFieldCard].SetHasAttack(true);
+				//相手のフィールドガードの行動
+				for (int i = 0; i < enemyField.size(); i++) {
+					int x = enemyCardX + i * CARD_INTERVAL;
+					int y = ENEMY_CARD_Y;
 
-				//体力０の相手カードを削除
-				if (enemyField[selectEnemyCard].GetHp() == 0) {
-					enemyField.erase(enemyField.begin() + selectEnemyCard);
+					//カードの上にマウスポインタがあるかの判別
+					if (enemyField[i].HitDetection(x, y) && !isDragging) {
+						mouseOnCard = true;
+						//左クリック
+						if (mouseInput & MOUSE_INPUT_LEFT) {
+							if (selectFieldCard != -1) {
+								selectEnemyCard = i;
+								hasAttack = true;
+							}
+						}
+					}
 				}
-				selectEnemyCard = -1;
-			}
 
-			//ターン終了ボタンの当たり判定
-			int dx = Input::mouseX - TURN_BUTTON_X;
-			int dy = Input::mouseY - TURN_BUTTON_Y;
-			if (dx * dx + dy * dy <= TURN_BUTTON_RADIUS * TURN_BUTTON_RADIUS) {
-				if ((mouseInput & MOUSE_INPUT_LEFT)) {
-					playerTurn = false;
+				//攻撃処理
+				if (hasAttack && !playerField[selectFieldCard].HasAttacked() && selectFieldCard != -1 && selectEnemyCard != -1) {
+					enemyField[selectEnemyCard].TakeDamage(playerField[selectFieldCard].GetAttack());
+					playerField[selectFieldCard].SetHasAttack(true);
+
+					//体力０の相手カードを削除
+					if (enemyField[selectEnemyCard].GetHp() == 0) {
+						enemyField.erase(enemyField.begin() + selectEnemyCard);
+					}
+					selectEnemyCard = -1;
+				}
+
+				//ターン終了ボタンの当たり判定
+				int dx = Input::mouseX - TURN_BUTTON_X;
+				int dy = Input::mouseY - TURN_BUTTON_Y;
+				if (dx * dx + dy * dy <= TURN_BUTTON_RADIUS * TURN_BUTTON_RADIUS) {
+					if ((mouseInput & MOUSE_INPUT_LEFT) && !currentClick) {
+						playerTurn = false;
+						currentClick = true;
+						turnDrawTime = 0;
+					}
 				}
 			}
 		}
@@ -329,13 +350,51 @@ int main() {
 
 		//相手の行動---------------------------------------------------------
 		else {
-			std::cout << "ターン終了";
-			if (!enemyHand.empty()) {
-				enemyField.push_back(enemyHand[0]);
-				enemyHand.erase(enemyHand.begin());
+			enemyWait++;
+			turnDrawTime++;
+
+			if (turnDrawTime <= 60) {
+				drawTurn = true;
 			}
-		
-			playerTurn = true;
+
+			if (enemyAction == 0 && enemyWait >= 60 * AI_THINK) {
+
+				std::cout << "ターン終了";
+				//一枚だけ場に出す
+				if (!enemyHand.empty()) {
+					enemyField.push_back(enemyHand[0]);
+					enemyHand.erase(enemyHand.begin());
+					enemyAction = 1;
+					enemyWait = 0;
+				}
+				else {
+					enemyAction = 2;
+					enemyWait = 0;
+				}
+			}
+
+			if (enemyAction == 1 && enemyWait >= 60 * AI_THINK) {
+				//攻撃
+				if (!playerField.empty()) {
+					playerField[0].TakeDamage(enemyField[0].GetAttack());
+					enemyField[0].SetHasAttack(true);
+
+					//体力０の相手カードを削除
+					if (playerField[0].GetHp() == 0) {
+						playerField.erase(playerField.begin());
+					}
+				}
+				enemyAction = 2;
+				enemyWait = 0;
+			}
+
+
+			if (enemyAction == 2 && enemyWait >= 60 * AI_THINK) {
+				playerTurn = true;
+				enemyAction = 0;
+				enemyWait = 0;
+				turnDrawTime = 0;
+			}
 		}
 
 		//-----------------------------------------------------------------------
@@ -359,12 +418,27 @@ int main() {
 
 
 
-		//カードの描画--------------------------------------------------------
+		//描画--------------------------------------------------------
+
+		//現在のターン
+		if (drawTurn) {
+			if (playerTurn) {
+				DrawStringToHandle(450, 300, "YOUR TURN", GetColor(100, 100, 255), turnFont);
+			}
+			else {
+				DrawStringToHandle(450, 300, "ENEMY TURN", GetColor(255, 150 ,150), turnFont);
+			}
+		}
 
 		//ハンド
 		for (int i = 0; i < hand.size(); i++) {
 			int x = handX + i * CARD_INTERVAL;
 			int y = HAND_Y;
+
+			//カードの上にマウスポインタがあるかの判別
+			if (hand[i].HitDetection(x, y) && !isDragging) {
+				mouseOnCard = true;
+			}
 
 			//選択中のハンドがマウスについてくる
 			if (isDragging && selectHandCard == i) {
@@ -382,6 +456,12 @@ int main() {
 		for (int i = 0; i < enemyHand.size(); i++) {
 			int x = enemyHandX + i * CARD_INTERVAL;
 			int y = ENEMY_HAND_Y;
+
+			//カードの上にマウスポインタがあるかの判別
+			if (enemyHand[i].HitDetection(x, y) && !isDragging) {
+				mouseOnCard = true;
+			}
+
 			enemyHand[i].DrawBackCard(x, y);
 		}
 
@@ -390,11 +470,12 @@ int main() {
 			int x = fieldCardX + i * CARD_INTERVAL;
 			int y = FIELD_CARD_Y;
 
+			if (playerField[i].HitDetection(x, y) && !isDragging) {
+				mouseOnCard = true;
+			}
+
 			if (selectFieldCard == i) {
 				y -= 20;
-				if (playerField[i].HitDetection(x, y) && !isDragging) {
-					mouseOnCard = true;
-				}
 			}
 
 			playerField[i].DrawCard(x, y);
@@ -404,6 +485,11 @@ int main() {
 		for (int i = 0; i < enemyField.size(); i++) {
 			int x = enemyCardX + i * CARD_INTERVAL;
 			int y = ENEMY_CARD_Y;
+
+			//カードの上にマウスポインタがあるかの判別
+			if (enemyField[i].HitDetection(x, y) && !isDragging) {
+				mouseOnCard = true;
+			}
 
 			enemyField[i].DrawCard(x, y);
 		}
