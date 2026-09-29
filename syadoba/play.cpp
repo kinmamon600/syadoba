@@ -186,15 +186,21 @@ int main() {
 
 	bool playerTurn = true;          //現在のターン
 
-	int turnDrawTime = 0;			 //ターン描画秒数
+	float turnDrawTime = 0.0f;			 //ターン描画秒数
 
-	int enemyAction = 0;			 //相手の行動段階
-	int enemyWait = 0;				 //相手の行動を待つ秒数
+	int enemyAction = 0;			     //相手の行動段階
+	float enemyWait = 0.0f;				 //相手の行動を待つ秒数
 
-	int turnFont = CreateFontToHandle("ＭＳ ゴシック", 80, 3, DX_FONTTYPE_NORMAL);
+	float turnFont = CreateFontToHandle("ＭＳ ゴシック", 80, 3, DX_FONTTYPE_NORMAL);      //大きい文字のためのフォント
 
+	int pastTime = GetNowCount();		   //deltaTimeのための変数
+	float deltaTime = 0.0f;		 		   //deltaTimeのための変数
 
 	while (ProcessMessage() == 0) {
+		int currentTime = GetNowCount();
+		deltaTime = (currentTime - pastTime) / 1000.0f;
+		pastTime = currentTime;
+
 		if (CheckHitKey(KEY_INPUT_ESCAPE)) {
 			break;
 		}
@@ -246,13 +252,13 @@ int main() {
 
 		//プレイヤーの行動---------------------------------------------------------
 		if (playerTurn) {
-			turnDrawTime++;
+			turnDrawTime += deltaTime;
 
-			if (turnDrawTime <= 60) {
+			if (turnDrawTime <= 1.0f) {
 				drawTurn = true;
 			}
 
-			if (turnDrawTime >= 60) {
+			if (turnDrawTime >= 1.0f) {
 				//ハンドの行動
 				for (int i = 0; i < hand.size(); i++) {
 					int x = handX + i * CARD_INTERVAL;
@@ -350,14 +356,14 @@ int main() {
 
 		//相手の行動---------------------------------------------------------
 		else {
-			enemyWait++;
-			turnDrawTime++;
+			enemyWait += deltaTime;
+			turnDrawTime += deltaTime;
 
-			if (turnDrawTime <= 60) {
+			if (turnDrawTime <= 1.0f) {
 				drawTurn = true;
 			}
 
-			if (enemyAction == 0 && enemyWait >= 60 * AI_THINK) {
+			if (enemyAction == 0 && enemyWait >= AI_THINK) {
 
 				std::cout << "ターン終了";
 				//一枚だけ場に出す
@@ -373,7 +379,7 @@ int main() {
 				}
 			}
 
-			if (enemyAction == 1 && enemyWait >= 60 * AI_THINK) {
+			if (enemyAction == 1 && enemyWait >= AI_THINK) {
 				//攻撃
 				if (!playerField.empty()) {
 					playerField[0].TakeDamage(enemyField[0].GetAttack());
@@ -389,7 +395,7 @@ int main() {
 			}
 
 
-			if (enemyAction == 2 && enemyWait >= 60 * AI_THINK) {
+			if (enemyAction == 2 && enemyWait >= AI_THINK) {
 				playerTurn = true;
 				enemyAction = 0;
 				enemyWait = 0;
