@@ -38,16 +38,10 @@ int Input::mouseX{ -1 }; int Input::mouseY{ -1 };
 
 
 class Card {
-private:
-	std::string m_name;
-	int m_cost;
-	int m_attack;
-	int m_hp;
-	bool m_hasAttack;      //すでに攻撃済みか
 public:
-	Card(std::string _name = "null", int _cost = 0, int _attack = 0, int _hp = 0, bool _hasAttack = false);
+	Card(std::string name = "null", int cost = 0, int attack = 0, int hp = 0, bool hasAttack = false);
 	//カード描画
-	void DrawCard(int x, int y);
+	void Draw(int x, int y);
 	//カードの裏側の描画
 	void DrawBackCard(int x, int y);
 	//カードの当たり判定
@@ -62,17 +56,23 @@ public:
 	bool HasAttacked();
 	//攻撃フラグ書き換え
 	void SetHasAttack(bool value);
+private:
+	std::string m_name;
+	int m_cost;
+	int m_attack;
+	int m_hp;
+	bool m_hasAttack;      //すでに攻撃済みか
 };
 
-Card::Card(std::string _name, int _cost, int _attack, int _hp, bool _hasAttack) {
-	m_name = _name;
-	m_cost = _cost;
-	m_attack = _attack;
-	m_hp = _hp;
-	m_hasAttack = _hasAttack;
+Card::Card(std::string name, int cost, int attack, int hp, bool hasAttack) {
+	m_name = name;
+	m_cost = cost;
+	m_attack = attack;
+	m_hp = hp;
+	m_hasAttack = hasAttack;
 }
 
-void Card::DrawCard(int x, int y) {
+void Card::Draw(int x, int y) {
 	std::string costText = std::to_string(m_cost);
 	std::string attackText = std::to_string(m_attack);
 	std::string hpText = std::to_string(m_hp);
@@ -122,22 +122,50 @@ void Card::SetHasAttack(bool value) {
 class Field {
 public:
 	//フィールドの描画
-	void DrawField();
+	void Draw();
 	//フィールドの当たり判定
-	bool FieldDetection();
+	bool HitDetection();
 };
 
-void Field::DrawField() {
+void Field::Draw() {
 	DrawBox(FIELD_X, FIELD_Y, FIELD_X + FIELD_WIDTH, FIELD_Y + FIELD_HEIGHT, GetColor(100, 100, 100), false);
 }
 
-bool Field::FieldDetection() {
+bool Field::HitDetection() {
 	if (Input::mouseX >= FIELD_X && Input::mouseY >= FIELD_Y && Input::mouseX <= FIELD_X + FIELD_WIDTH && Input::mouseY <= FIELD_Y + FIELD_HEIGHT) {
 		return true;
 	}
 	else {
 		return false;
 	}
+}
+
+
+class Leader {
+public:
+	Leader(float hp = 0);
+	int GetHp();
+	void TakeDamage(int damage);
+	void Draw();
+	bool HitDetection();
+private:
+	float m_hp;
+};
+
+Leader::Leader(float hp) {
+	m_hp = hp;
+}
+
+int Leader::GetHp() {
+	return m_hp;
+}
+
+void Leader::TakeDamage(int damage) {
+	m_hp -= damage;
+}
+
+void Draw() {
+
 }
 
 
@@ -185,19 +213,23 @@ int main() {
 	bool pastClick = false;          //１Ｆ前にクリックしていたか
 
 	bool playerTurn = true;          //現在のターン
+	bool pastPlayerTurn = true;      //1f前のターン
 
 	float turnDrawTime = 0.0f;			 //ターン描画秒数
 
 	int enemyAction = 0;			     //相手の行動段階
 	float enemyWait = 0.0f;				 //相手の行動を待つ秒数
 
-	float turnFont = CreateFontToHandle("ＭＳ ゴシック", 80, 3, DX_FONTTYPE_NORMAL);      //大きい文字のためのフォント
+	int turnFont = CreateFontToHandle("ＭＳ ゴシック", 80, 3, DX_FONTTYPE_NORMAL);      //大きい文字のためのフォント
 
 	int pastTime = GetNowCount();		   //deltaTimeのための変数
 	float deltaTime = 0.0f;		 		   //deltaTimeのための変数
 
+	int playerHp = 20;
+	int enemyHp = 20;
+
 	while (ProcessMessage() == 0) {
-		int currentTime = GetNowCount();
+		float currentTime = GetNowCount();
 		deltaTime = (currentTime - pastTime) / 1000.0f;
 		pastTime = currentTime;
 
@@ -231,12 +263,11 @@ int main() {
 
 		bool hasAttack = false;								//今から攻撃するかどうか
 
+		bool drawTurn = false;                              //ターン描画のためのフラグ
 
-		bool drawTurn = false;
-
-
+		//フィールド描画
 		Field field;
-		field.DrawField();
+		field.Draw();
 
 		//左クリックしていない
 		if (!(mouseInput & MOUSE_INPUT_LEFT)) {
@@ -252,6 +283,12 @@ int main() {
 
 		//プレイヤーの行動---------------------------------------------------------
 		if (playerTurn) {
+			if (playerTurn && !pastPlayerTurn) {
+				for (int i = 0; i < playerField.size(); i++) {
+					playerField[i].SetHasAttack(false);
+				}
+			}
+
 			turnDrawTime += deltaTime;
 
 			if (turnDrawTime <= 1.0f) {
@@ -286,7 +323,7 @@ int main() {
 				//クリックを離した
 				if (!currentClick && pastClick) {
 					//フィールド上で
-					if (field.FieldDetection() && pastSelectHandCard != -1) {
+					if (field.HitDetection() && pastSelectHandCard != -1) {
 						playerField.push_back(hand[pastSelectHandCard]);
 						hand.erase(hand.begin() + pastSelectHandCard);
 					}
@@ -356,6 +393,12 @@ int main() {
 
 		//相手の行動---------------------------------------------------------
 		else {
+			if (!playerTurn && pastPlayerTurn) {
+				for (int i = 0; i < enemyHand.size(); i++) {
+
+				}
+			}
+
 			enemyWait += deltaTime;
 			turnDrawTime += deltaTime;
 
@@ -426,16 +469,6 @@ int main() {
 
 		//描画--------------------------------------------------------
 
-		//現在のターン
-		if (drawTurn) {
-			if (playerTurn) {
-				DrawStringToHandle(450, 300, "YOUR TURN", GetColor(100, 100, 255), turnFont);
-			}
-			else {
-				DrawStringToHandle(450, 300, "ENEMY TURN", GetColor(255, 150 ,150), turnFont);
-			}
-		}
-
 		//ハンド
 		for (int i = 0; i < hand.size(); i++) {
 			int x = handX + i * CARD_INTERVAL;
@@ -454,7 +487,7 @@ int main() {
 
 			//ドラッグしていないハンドの描画
 			if (!(isDragging && selectHandCard == i)) {
-				hand[i].DrawCard(x, y);
+				hand[i].Draw(x, y);
 			}
 		}
 
@@ -484,7 +517,7 @@ int main() {
 				y -= 20;
 			}
 
-			playerField[i].DrawCard(x, y);
+			playerField[i].Draw(x, y);
 		}
 
 		//相手のフィールドガード
@@ -497,15 +530,25 @@ int main() {
 				mouseOnCard = true;
 			}
 
-			enemyField[i].DrawCard(x, y);
+			enemyField[i].Draw(x, y);
 		}
 
 		//ドラッグ中のカード
 		if (isDragging && selectHandCard != -1) {
-			hand[selectHandCard].DrawCard(dragX, dragY);
+			hand[selectHandCard].Draw(dragX, dragY);
 		}
 		if (isDragging && selectFieldCard != -1) {
-			playerField[selectFieldCard].DrawCard(dragX, dragY);
+			playerField[selectFieldCard].Draw(dragX, dragY);
+		}
+
+		//現在のターン
+		if (drawTurn) {
+			if (playerTurn) {
+				DrawStringToHandle(450, 300, "YOUR TURN", GetColor(100, 100, 255), turnFont);
+			}
+			else {
+				DrawStringToHandle(450, 300, "ENEMY TURN", GetColor(255, 150, 150), turnFont);
+			}
 		}
 
 		//描画終わり---------------------------------------------------------------------
